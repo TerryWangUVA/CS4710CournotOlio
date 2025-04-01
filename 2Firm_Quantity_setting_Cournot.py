@@ -1,6 +1,10 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+
 
 class CournotAgent:
     def __init__(self, max_quantity, delta_n, alpha, epsilon, epsilon_decay, min_epsilon):
@@ -124,18 +128,18 @@ def run_cournot_simulation(num_episodes, max_q, delta_n, a, b, c1, c2,
 if __name__ == "__main__":
     q1_hist, q2_hist = run_cournot_simulation(
         num_episodes=300000,
-        max_q=20,
-        delta_n=2,
-        a=-1,
-        b=40,
-        c1=4,
-        c2=4,
-        alpha=0.1,
-        epsilon=1.0,
-        epsilon_decay=0.995,
-        min_epsilon=0.05,
-        initial_q1=0,
-        initial_q2=0
+        max_q=20, # Maximum quantity a firm can produce
+        delta_n=2, # Change in production allowed
+        a=-1, # Coefficient for price function (negative slope)
+        b=40, # Intercept for price function (base price when total quantity is 0)
+        c1=4, # Cost per unit for Firm 1
+        c2=4, # Cost per unit for Firm 2
+        alpha=0.1, # Learning rate
+        epsilon=1.0, # Initial exploration rate
+        epsilon_decay=0.995, # Decay rate for exploration
+        min_epsilon=0.05, # Minimum exploration rate
+        initial_q1=0, # Initial quantity for Firm 1
+        initial_q2=0 # Initial quantity for Firm 2
     )
     #analytical result for the set of parameters given above is q1=q2=12.
     # Formula : (b-c)/a(2+1) = 12
@@ -181,4 +185,25 @@ if __name__ == "__main__":
     #An attempt to visualize outputs for case 1:
     plot_quantities(q1_hist, q2_hist, title="Test Case 1: Symmetric Cournot (q1 = q2 ≈ 12)", smooth=True)
     plot_quantities(q12_hist, q22_hist, title="Test Case 2: Corner Solution (q1=45, q2=0))", smooth=True)
+
+    # Calculate the difference in quantities (Firm 1 - Firm 2)
+    quantity_differences = [q1 - q2 for q1, q2 in zip(q1_hist, q2_hist)]
+
+    # Smooth the quantity differences using a moving average
+    window_size = 6000  # Adjust the window size for smoothing
+    smoothed_quantity_differences = np.convolve(quantity_differences, np.ones(window_size)/window_size, mode='valid')
+
+    # Plot the smoothed difference in quantities
+    plt.figure(figsize=(12, 6))
+    plt.plot(smoothed_quantity_differences, label="Smoothed Quantity Difference (Firm 1 - Firm 2)", color="blue")
+    plt.axhline(0, color="red", linestyle="--", label="Convergence Line (0)")
+    plt.xlabel("Episode")
+    plt.ylabel("Quantity Difference (Firm 1 - Firm 2)")
+    plt.title("Convergence of Quantities Produced by Firms Over Time")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
 
