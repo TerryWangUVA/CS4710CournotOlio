@@ -88,49 +88,6 @@ def plot_quantities(q1_hist, q2_hist, title="Cournot Learning Dynamics", smooth=
     plt.tight_layout()
     plt.show()
 
-def run_cournot_simulation(num_episodes, max_q, delta_n, a, b, c1, c2,
-                           alpha, epsilon, epsilon_decay, min_epsilon,
-                           initial_q1=None, initial_q2=None):
-    
-    agent1 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon)
-    agent2 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon)
-
-    # Allow user to specify initial quantities
-    if initial_q1 is None:
-        q1 = max_q // 2
-    else:
-        q1 = initial_q1
-
-    if initial_q2 is None:
-        q2 = max_q // 2
-    else:
-        q2 = initial_q2
-
-    for episode in range(num_episodes):
-        state1 = (q1, q2)
-        state2 = (q2, q1)
-
-        action1 = agent1.choose_action(state1)
-        action2 = agent2.choose_action(state2)
-
-        q1_new = q1 + action1
-        q2_new = q2 + action2
-
-        reward1, reward2 = get_profits(q1_new, q2_new, a, b, c1, c2)
-
-        next_state1 = (q1_new, q2_new)
-        next_state2 = (q2_new, q1_new)
-
-        agent1.update(state1, action1, reward1, next_state1)
-        agent2.update(state2, action2, reward2, next_state2)
-
-        agent1.decay_epsilon()
-        agent2.decay_epsilon()
-
-        q1, q2 = q1_new, q2_new
-
-    return agent1.history, agent2.history
-
 def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c2, c3,
                                        alpha, epsilon, epsilon_decay, min_epsilon,
                                        initial_q1=None, initial_q2=None, initial_q3=None):
@@ -144,7 +101,16 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
     q2 = initial_q2 if initial_q2 is not None else max_q // 3
     q3 = initial_q3 if initial_q3 is not None else max_q // 3
 
+    count = 0
     for episode in range(num_episodes):
+        # Calculate the percentage of progress
+        percentage = ((episode + 1) * 100)  //  num_episodes
+
+        # Print percentage only when it changes (integer)
+        if percentage > count:
+            count = percentage
+            print(count, end=" ", flush=True)
+            
         state1 = (q1, q2, q3)
         state2 = (q2, q3, q1)
         state3 = (q3, q1, q2)
@@ -173,12 +139,14 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
 
         q1, q2, q3 = q1_new, q2_new, q3_new
 
+    print()  # Add a newline after the progress output
     return agent1.history, agent2.history, agent3.history
 
 
 # Example usage
 if __name__ == "__main__":
 
+    print("Running simulation. Current percentage complete:")
     # Example usage for 3 firms
     q1_hist, q2_hist, q3_hist = run_cournot_simulation_three_firms(
         num_episodes=1500000,

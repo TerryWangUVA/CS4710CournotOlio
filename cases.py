@@ -201,3 +201,6 @@ q1_uva, q2_uva = run_cournot_simulation(
     Q_UVA=10  # supply added by UVA
 )
 plot_quantities(q1_uva, q2_uva, title="scenario 3: UVA enters market", smooth=True)
+
+
+#scenario 4, affordable housing AND UVA enters market (only start after finishing first 3 scenarios)
