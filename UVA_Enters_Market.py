@@ -66,7 +66,7 @@ def run_cournot_simulation_with_uva(num_episodes, max_q, delta_n, a, b, c1, c2, 
 
     count = 0
     for episode in range(num_episodes):
-        percentage = ((episode + 1) * 100)
+        percentage = ((episode + 1) * 100) // num_episodes
         if percentage > count:
             count = percentage
             print(count, end=" ", flush=True)
