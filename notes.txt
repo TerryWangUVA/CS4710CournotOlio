@@ -1,0 +1,4 @@
+make another scenario with 1 firm high cost. see if two other firms treat this as a two firm oli
+
+just try to add firms until it cant converge (try many epochs to ensure)
+

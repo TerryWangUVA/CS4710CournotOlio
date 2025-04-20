@@ -72,7 +72,16 @@ def run_cournot_simulation_multiple_firms(num_episodes, num_firms, max_q, delta_
 
     histories = [[] for _ in range(num_firms)]
 
+    count = 0
     for episode in range(num_episodes):
+        # Calculate the percentage of progress
+        percentage = ((episode + 1) * 100)  //  num_episodes
+
+        # Print percentage only when it changes (integer)
+        if percentage > count:
+            count = percentage
+            print(count, end=" ", flush=True)
+
         states = [tuple(quantities)] * num_firms
         actions = [agent.choose_action(state) for agent, state in zip(agents, states)]
 
@@ -100,17 +109,17 @@ def run_cournot_simulation_multiple_firms(num_episodes, num_firms, max_q, delta_
 if __name__ == "__main__":
 
     # Example usage for x firms
-    num_firms = 5
-    costs = [5] * num_firms  # Cost per unit for each firm
+    num_firms = 4
+    costs = [4] * num_firms  # Cost per unit for each firm
     initial_quantities = [0] * num_firms  # Initial quantities for each firm
 
     histories = run_cournot_simulation_multiple_firms(
-        num_episodes=100000,
+        num_episodes=750000,
         num_firms=num_firms,
-        max_q=50,  # Maximum quantity a firm can produce
+        max_q=24,  # Maximum quantity a firm can produce
         delta_n=1,  # Change in production allowed
         a=-1,  # Coefficient for price function (negative slope)
-        b=100,  # Intercept for price function (base price when total quantity is 0)
+        b=50,  # Intercept for price function (base price when total quantity is 0)
         costs=costs,
         alpha=0.1,  # Learning rate
         epsilon=1.0,  # Initial exploration rate
