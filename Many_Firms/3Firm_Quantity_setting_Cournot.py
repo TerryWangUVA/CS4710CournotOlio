@@ -194,14 +194,14 @@ if __name__ == "__main__":
     plt.show()
 
     # Calculate the average absolute difference
-    avg_abs_diff = (abs_diff_12 + abs_diff_13 + abs_diff_23) / 3
+    #avg_abs_diff = (abs_diff_12 + abs_diff_13 + abs_diff_23) / 3
 
     # Smooth the average absolute difference using a moving average
-    avg_abs_diff_smooth = np.convolve(avg_abs_diff, np.ones(window_size)/window_size, mode='valid')
+    #avg_abs_diff_smooth = np.convolve(avg_abs_diff, np.ones(window_size)/window_size, mode='valid')
 
     # Plot the smoothed average absolute difference
     plt.figure(figsize=(12, 6))
-    plt.plot(avg_abs_diff_smooth, label="Average Absolute Difference (smoothed)", color="blue")
+    #plt.plot(avg_abs_diff_smooth, label="Average Absolute Difference (smoothed)", color="blue")
 
     # Add labels, title, and legend
     plt.xlabel("Episode")

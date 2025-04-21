@@ -3,7 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-
+import time  # Import the time module for elapsed time calculation
 
 
 class CournotAgent:
@@ -129,19 +129,22 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
 
 # Example usage
 if __name__ == "__main__":
-
     print("Running simulation. Current percentage complete:")
+
+    # Start timing the simulation
+    start_time = time.time()
+
     # Example usage for 4 firms
     q1_hist, q2_hist, q3_hist, q4_hist = run_cournot_simulation_three_firms(
-        num_episodes=700000,
-        max_q=40,  # Maximum quantity a firm can produce
+        num_episodes=600000,
+        max_q=25,  # Maximum quantity a firm can produce
         delta_n=2,  # Change in production allowed
         a=-1,  # Coefficient for price function (negative slope)
         b=40,  # Intercept for price function (base price when total quantity is 0)
-        c1=6,  # Cost per unit for Firm 1
-        c2=6,  # Cost per unit for Firm 2
-        c3=6,  # Cost per unit for Firm 3        
-        c4=6,  # Cost per unit for Firm 4
+        c1=5,  # Cost per unit for Firm 1
+        c2=5,  # Cost per unit for Firm 2
+        c3=5,  # Cost per unit for Firm 3        
+        c4=5,  # Cost per unit for Firm 4
         alpha=0.1,  # Learning rate
         epsilon=1.0,  # Initial exploration rate
         epsilon_decay=0.995,  # Decay rate for exploration
@@ -153,28 +156,45 @@ if __name__ == "__main__":
     )
 
     # Plot results for 4 firms with smoothing
-    plt.figure(figsize=(12, 6))
+    print("\nSmoothing data. Current percentage complete:")
 
     # Define the smoothing window size
-    window_size = 10000
+    window_size = 5000
+
+    # Initialize smoothing progress
+    smoothing_steps = 4  # Number of firms being smoothed
+    smoothing_count = 0
 
     # Apply moving average for smoothing
     q1_smooth = np.convolve(q1_hist, np.ones(window_size)/window_size, mode='valid')
+    smoothing_count += 1
+    print((smoothing_count * 100) // smoothing_steps, end=" ", flush=True)
+
     q2_smooth = np.convolve(q2_hist, np.ones(window_size)/window_size, mode='valid')
+    smoothing_count += 1
+    print((smoothing_count * 100) // smoothing_steps, end=" ", flush=True)
+
     q3_smooth = np.convolve(q3_hist, np.ones(window_size)/window_size, mode='valid')
+    smoothing_count += 1
+    print((smoothing_count * 100) // smoothing_steps, end=" ", flush=True)
+
     q4_smooth = np.convolve(q4_hist, np.ones(window_size)/window_size, mode='valid')
+    smoothing_count += 1
+    print((smoothing_count * 100) // smoothing_steps, end=" ", flush=True)
+
+    print()  # Add a newline after smoothing progress
 
     # Plot the smoothed quantities
+    plt.figure(figsize=(12, 6))
     plt.plot(q1_smooth, label="Firm 1 (smoothed) " + str(window_size), color="blue")
     plt.plot(q2_smooth, label="Firm 2 (smoothed) " + str(window_size), color="orange")
     plt.plot(q3_smooth, label="Firm 3 (smoothed) " + str(window_size), color="green")
     plt.plot(q4_smooth, label="Firm 4 (smoothed) " + str(window_size), color="black")
 
-
     # Add labels, title, and legend
     plt.xlabel("Episode")
     plt.ylabel("Quantity")
-    plt.title("Smoothed Cournot Learning Dynamics for 3 Firms")
+    plt.title("Smoothed Cournot Learning Dynamics for 4 Firms")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -182,51 +202,8 @@ if __name__ == "__main__":
     # Show the plot
     plt.show()
 
-    # Calculate absolute differences between firms
-    abs_diff_12 = np.abs(np.array(q1_hist) - np.array(q2_hist))
-    abs_diff_13 = np.abs(np.array(q1_hist) - np.array(q3_hist))
-    abs_diff_23 = np.abs(np.array(q2_hist) - np.array(q3_hist))
-
-    # Smooth the absolute differences using a moving average
-    abs_diff_12_smooth = np.convolve(abs_diff_12, np.ones(window_size)/window_size, mode='valid')
-    abs_diff_13_smooth = np.convolve(abs_diff_13, np.ones(window_size)/window_size, mode='valid')
-    abs_diff_23_smooth = np.convolve(abs_diff_23, np.ones(window_size)/window_size, mode='valid')
-
-    # Plot the smoothed absolute differences
-    #plt.figure(figsize=(12, 6))
-    #plt.plot(abs_diff_12_smooth, label="|Firm 1 - Firm 2| (smoothed)", color="purple")
-    #plt.plot(abs_diff_13_smooth, label="|Firm 1 - Firm 3| (smoothed)", color="green")
-    #plt.plot(abs_diff_23_smooth, label="|Firm 2 - Firm 3| (smoothed)", color="orange")
-
-    # Add labels, title, and legend
-    plt.xlabel("Episode")
-    plt.ylabel("Absolute Difference")
-    plt.title("Smoothed Absolute Differences Between Firms")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-
-    # Show the plot
-    plt.show()
-
-    # Calculate the average absolute difference
-    avg_abs_diff = (abs_diff_12 + abs_diff_13 + abs_diff_23) / 3
-
-    # Smooth the average absolute difference using a moving average
-    avg_abs_diff_smooth = np.convolve(avg_abs_diff, np.ones(window_size)/window_size, mode='valid')
-
-    # Plot the smoothed average absolute difference
-    plt.figure(figsize=(12, 6))
-    plt.plot(avg_abs_diff_smooth, label="Average Absolute Difference (smoothed)", color="blue")
-
-    # Add labels, title, and legend
-    plt.xlabel("Episode")
-    plt.ylabel("Average Absolute Difference")
-    plt.title("Smoothed Average Absolute Difference Between Firms")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-
-    # Show the plot
-    plt.show()
+    # Calculate and display total elapsed time
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"\nTotal elapsed time: {elapsed_time:.2f} seconds")
 

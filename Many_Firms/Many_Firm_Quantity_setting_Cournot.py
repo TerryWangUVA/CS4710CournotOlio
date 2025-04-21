@@ -109,12 +109,12 @@ def run_cournot_simulation_multiple_firms(num_episodes, num_firms, max_q, delta_
 if __name__ == "__main__":
 
     # Example usage for x firms
-    num_firms = 4
-    costs = [4] * num_firms  # Cost per unit for each firm
+    num_firms = 3
+    costs = [3] * num_firms  # Cost per unit for each firm
     initial_quantities = [0] * num_firms  # Initial quantities for each firm
 
     histories = run_cournot_simulation_multiple_firms(
-        num_episodes=750000,
+        num_episodes=700000,
         num_firms=num_firms,
         max_q=24,  # Maximum quantity a firm can produce
         delta_n=1,  # Change in production allowed
