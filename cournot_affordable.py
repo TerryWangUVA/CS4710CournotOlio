@@ -1,8 +1,8 @@
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import pandas as pd
+import seaborn as sns  # Import seaborn
 
 class CournotAgent:
     def __init__(self, max_quantity, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit):
@@ -40,7 +40,7 @@ class CournotAgent:
     def update(self, state, action, reward, next_state, affordable_housing_provided):
         old_q = self.get_q(state, action)
         max_next_q = max([self.get_q(next_state, a) for a in self.get_legal_actions(next_state)])
-        new_q = old_q + self.alpha * (reward - old_q)  # no discounting
+        new_q = old_q + self.alpha * (reward + max_next_q - old_q)  # include discounting
         self.q_table[(state, action)] = new_q
         self.affordable_history.append(affordable_housing_provided)
 
@@ -82,9 +82,9 @@ def get_profits_three_firms(q1, q2, q3, a, b, c1, c2, c3, affordable_housing_per
     affordable_required_3 = q3 * affordable_housing_percentage
 
     # calculate penalties if affordable housing requirements are not met.  assume no affordable housing is produced.
-    penalty1 = q1 * affordable_housing_percentage * penalty_per_unit
-    penalty2 = q2 * affordable_housing_percentage * penalty_per_unit
-    penalty3 = q3 * affordable_housing_percentage * penalty_per_unit
+    penalty1 = max(0, affordable_required_1 * penalty_per_unit)
+    penalty2 = max(0, affordable_required_2 * penalty_per_unit)
+    penalty3 = max(0, affordable_required_3 * penalty_per_unit)
 
     profit1 = P * q1 - c1 * q1 - penalty1
     profit2 = P * q2 - c2 * q2 - penalty2
@@ -93,13 +93,15 @@ def get_profits_three_firms(q1, q2, q3, a, b, c1, c2, c3, affordable_housing_per
     return profit1, profit2, profit3, affordable_required_1, affordable_required_2, affordable_required_3
 
 
-def plot_quantities(q1_hist, q2_hist, q3_hist, title="Cournot Learning Dynamics (3 Firms)", smooth=False, save_path=None):
+def plot_quantities(q1_hist, q2_hist, q3_hist, title="Cournot Learning Dynamics (3 Firms)", smooth=True, window=500, save_path=None):
+    """Plots the quantities produced by each firm over time, with optional smoothing."""
     plt.figure(figsize=(12, 6))
+
+    # Smoothing using a moving average
     if smooth:
-        window = 500
-        q1_smooth = np.convolve(q1_hist, np.ones(window) / window, mode='valid')
-        q2_smooth = np.convolve(q2_hist, np.ones(window) / window, mode='valid')
-        q3_smooth = np.convolve(q3_hist, np.ones(window) / window, mode='valid')
+        q1_smooth = np.convolve(q1_hist, np.ones(window) / window, mode='same')  # Use 'same' for consistent length
+        q2_smooth = np.convolve(q2_hist, np.ones(window) / window, mode='same')
+        q3_smooth = np.convolve(q3_hist, np.ones(window) / window, mode='same')
         plt.plot(q1_smooth, label='Firm 1 (smoothed)')
         plt.plot(q2_smooth, label='Firm 2 (smoothed)')
         plt.plot(q3_smooth, label='Firm 3 (smoothed)')
@@ -119,14 +121,15 @@ def plot_quantities(q1_hist, q2_hist, q3_hist, title="Cournot Learning Dynamics 
         plt.savefig(save_path)
     plt.show()
 
-def plot_affordable_housing(aff1, aff2, aff3, save_path=None):
+def plot_affordable_housing(aff1, aff2, aff3, title="Affordable Housing Requirements Over Time", save_path=None):
+    """Plots the affordable housing requirements for each firm over time."""
     plt.figure(figsize=(12, 6))
     plt.plot(aff1, label='Firm 1 - Affordable')
     plt.plot(aff2, label='Firm 2 - Affordable')
     plt.plot(aff3, label='Firm 3 - Affordable')
     plt.xlabel("Episode")
     plt.ylabel("Affordable Housing Required")
-    plt.title("Affordable Housing Requirements Over Time")
+    plt.title(title)
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -136,6 +139,7 @@ def plot_affordable_housing(aff1, aff2, aff3, save_path=None):
     plt.show()
 
 def export_q_table(agent, firm_name, top_n=10):
+    """Exports the top N Q-values for a given agent to a CSV file."""
     # convert to DataFrame
     q_df = pd.DataFrame([
         {"State": k[0], "Action": k[1], "Q-Value": v}
@@ -144,6 +148,27 @@ def export_q_table(agent, firm_name, top_n=10):
     q_df = q_df.sort_values(by="Q-Value", ascending=False).head(top_n)
     q_df.to_csv(f"{firm_name}_top_q_values.csv", index=False)
     return q_df
+
+def plot_convergence(q1_hist, q2_hist, q3_hist, window=1000, save_path=None):
+    """Plots the moving average of quantities to visualize convergence."""
+    q1_smooth = np.convolve(q1_hist, np.ones(window) / window, mode='valid')
+    q2_smooth = np.convolve(q2_hist, np.ones(window) / window, mode='valid')
+    q3_smooth = np.convolve(q3_hist, np.ones(window) / window, mode='valid')
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(q1_smooth, label='Firm 1')
+    plt.plot(q2_smooth, label='Firm 2')
+    plt.plot(q3_smooth, label='Firm 3')
+    plt.xlabel("Episode (Moving Average)")
+    plt.ylabel("Quantity (Moving Average)")
+    plt.title("Convergence of Quantities (Moving Average)")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path)
+    plt.show()
 
 
 def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c2, c3,
@@ -216,7 +241,7 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
         affordable_hist_3.append(affordable_required_3)
 
     print()  # add a newline after the progress output
-    return q1_hist, q2_hist, q3_hist, agent1, agent2, agent3, agent1.affordable_history, agent2.affordable_history, agent3.affordable_history
+    return q1_hist, q2_hist, q3_hist, agent1, agent2, agent3, affordable_hist_1, affordable_hist_2, affordable_hist_3
 
 
 # Example usage
@@ -235,10 +260,10 @@ if __name__ == "__main__":
         c3=6,  # cost per unit for Firm 3
         alpha=0.1,  # learning rate
         epsilon=1.0,  # initial exploration rate
-        epsilon_decay=0.995,  # decay rate for exploration
+        epsilon_decay=0.999995,  # decay rate for exploration
         min_epsilon=0.05,  # minimum exploration rate
         affordable_housing_percentage=0.2,  # 20% of production must be affordable
-        penalty_per_unit=2,  # penalty for each unit of affordable housing not provided
+        penalty_per_unit=5,  # penalty for each unit of affordable housing not provided
         initial_q1=0,  # initial quantity for Firm 1
         initial_q2=0,  # initial quantity for Firm 2
         initial_q3=0   # initial quantity for Firm 3
@@ -247,6 +272,7 @@ if __name__ == "__main__":
     # save plots to files
     plot_quantities(q1_hist, q2_hist, q3_hist, smooth=True, save_path="quantities_plot.png")
     plot_affordable_housing(affordable_hist_1, affordable_hist_2, affordable_hist_3, save_path="affordable_housing_plot.png") # think this var is wrong
+    plot_convergence(q1_hist, q2_hist, q3_hist, save_path="convergence_plot.png")
 
     # export Q-tables to CSV
     export_q_table(agent1, "Firm1")
