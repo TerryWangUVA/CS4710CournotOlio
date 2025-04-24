@@ -165,7 +165,7 @@ if __name__ == "__main__":
         alpha=0.1,
         epsilon=1.0,
         epsilon_decay=0.995,
-        min_epsilon=0.05,
+        min_epsilon=0.001,
         initial_q1=15,
         initial_q2=15
     )
