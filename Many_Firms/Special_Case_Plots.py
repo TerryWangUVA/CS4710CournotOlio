@@ -123,17 +123,17 @@ def run_cournot_simulation(num_firms, num_episodes, max_q, delta_n, a, b, costs,
 
 if __name__ == "__main__":
     # Simulation parameters
-    num_firms = 4  # Number of firms participating in the market
-    num_episodes = 25000  # Number of episodes (iterations) for the simulation
-    max_q = 60  # Maximum quantity a firm can produce
+    num_firms = 3  # Number of firms participating in the market
+    num_episodes = 6000000  # Number of episodes (iterations) for the simulation
+    max_q = 65  # Maximum quantity a firm can produce
     delta_n = 2  # Maximum change in production allowed per action
     a = -1  # Slope of the price function (negative value, price decreases as total quantity increases)
-    b = 200  # Intercept of the price function (base price when total quantity is 0)
-    costs = [.5, 5, 50, 500] #* num_firms  # Cost per unit for each firm (assumes all firms have the same cost)
+    b = 100  # Intercept of the price function (base price when total quantity is 0)
+    costs = [1, 20, 10000] #* num_firms  # Cost per unit for each firm (assumes all firms have the same cost)
     alpha = 0.1  # Learning rate for Q-learning (how quickly agents update their Q-values)
     epsilon = 1.0  # Initial exploration rate (probability of choosing a random action)
-    epsilon_decay = 0.997  # Decay rate for exploration (reduces epsilon after each episode)
-    min_epsilon = 0.03  # Minimum exploration rate (ensures some exploration continues)
+    epsilon_decay = 0.995  # Decay rate for exploration (reduces epsilon after each episode)
+    min_epsilon = 0.05  # Minimum exploration rate (ensures some exploration continues)
     initial_quantities = [0] * num_firms  # Initial production quantities for all firms
 
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
     # Plot results
     print("\nSmoothing data and plotting results...")
-    window_size = 2000
+    window_size = 1000
     plt.figure(figsize=(13, 7))
 
     # Calculate the total number of points to be smoothed across all firms
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     print("\nAverage of the last 1000 values for each firm:")
     for i, history in enumerate(histories):
         last_1000_avg = np.mean(history[-1000:]) if len(history) >= 1000 else np.mean(history)
-        print(f"Firm {i + 1}: with cost:{costs:.2f} {last_1000_avg:.2f}")
+        print(f"Firm {i + 1} (cost={costs[i]:.2f}) : {last_1000_avg:.2f}")
         average_of_averages += last_1000_avg
 
     # Calculate and display total elapsed time
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         # Add to legend
         legend_labels.append(
             #f"Firm {i + 1} quantities: theoretical = {q_i_firm:.2f}, avg of last 1000 = {last_1000_avg:.2f}"
-            f"Firm {i + 1} avg quantity of last 1000 = {last_1000_avg:.2f}"        
+            f"Firm {i + 1} (cost={costs[i]:.1f})     Avg of Last 1000 = {last_1000_avg:.1f}"        
         )
         # Add dummy line for the legend with the firm's color
         plt.plot([], [], label=legend_labels[-1], color=colors[i % len(colors)], linewidth=0.9)
