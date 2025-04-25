@@ -2,10 +2,9 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns  # Import seaborn
 
 class CournotAgent:
-    def __init__(self, max_quantity, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit):
+    def __init__(self, max_quantity, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit, cost_affordable_multiplier=1.2):
         self.max_q = max_quantity
         self.delta_n = delta_n
         self.alpha = alpha
@@ -14,6 +13,7 @@ class CournotAgent:
         self.min_epsilon = min_epsilon
         self.affordable_housing_percentage = affordable_housing_percentage
         self.penalty_per_unit = penalty_per_unit
+        self.cost_affordable_multiplier = cost_affordable_multiplier # Multiplier for the cost of affordable housing
 
         self.action_space = list(range(-delta_n, delta_n + 1))  # change in production
         self.q_table = {}  # use dictionary due to large state space
@@ -72,7 +72,7 @@ def get_profits(q1, q2, a, b, c1, c2, affordable_housing_percentage, penalty_per
 
     return profit1, profit2
 
-def get_profits_three_firms(q1, q2, q3, a, b, c1, c2, c3, affordable_housing_percentage, penalty_per_unit):
+def get_profits_three_firms(q1, q2, q3, a, b, c1, c2, c3, affordable_housing_percentage, penalty_per_unit, agent1_cost_multiplier=1.0, agent2_cost_multiplier=1.0, agent3_cost_multiplier=1.0):
     """Calculate profits for three firms, considering affordable housing requirements and penalties."""
     P = price_function(a, b, q1 + q2 + q3)
 
@@ -81,23 +81,27 @@ def get_profits_three_firms(q1, q2, q3, a, b, c1, c2, c3, affordable_housing_per
     affordable_required_2 = q2 * affordable_housing_percentage
     affordable_required_3 = q3 * affordable_housing_percentage
 
-    # calculate penalties if affordable housing requirements are not met.  assume no affordable housing is produced.
+    # assume for simplicity that the first 'affordable_required' units are the affordable ones, with a higher cost
+    cost1 = c1 * (q1 - affordable_required_1) + (c1 * agent1_cost_multiplier) * affordable_required_1 if affordable_required_1 > 0 else c1 * q1
+    cost2 = c2 * (q2 - affordable_required_2) + (c2 * agent2_cost_multiplier) * affordable_required_2 if affordable_required_2 > 0 else c2 * q2
+    cost3 = c3 * (q3 - affordable_required_3) + (c3 * agent3_cost_multiplier) * affordable_required_3 if affordable_required_3 > 0 else c3 * q3
+
+    # calculate penalties if affordable housing requirements are not met
     penalty1 = max(0, affordable_required_1 * penalty_per_unit)
     penalty2 = max(0, affordable_required_2 * penalty_per_unit)
     penalty3 = max(0, affordable_required_3 * penalty_per_unit)
 
-    profit1 = P * q1 - c1 * q1 - penalty1
-    profit2 = P * q2 - c2 * q2 - penalty2
-    profit3 = P * q3 - c3 * q3 - penalty3
+    profit1 = P * q1 - cost1 - penalty1
+    profit2 = P * q2 - cost2 - penalty2
+    profit3 = P * q3 - cost3 - penalty3
 
     return profit1, profit2, profit3, affordable_required_1, affordable_required_2, affordable_required_3
 
 
 def plot_quantities(q1_hist, q2_hist, q3_hist, title="Cournot Learning Dynamics (3 Firms)", smooth=True, window=500, save_path=None):
-    """Plots the quantities produced by each firm over time, with optional smoothing."""
     plt.figure(figsize=(12, 6))
 
-    # Smoothing using a moving average
+    # smoothing using a moving average
     if smooth:
         q1_smooth = np.convolve(q1_hist, np.ones(window) / window, mode='same')  # Use 'same' for consistent length
         q2_smooth = np.convolve(q2_hist, np.ones(window) / window, mode='same')
@@ -121,12 +125,21 @@ def plot_quantities(q1_hist, q2_hist, q3_hist, title="Cournot Learning Dynamics 
         plt.savefig(save_path)
     plt.show()
 
-def plot_affordable_housing(aff1, aff2, aff3, title="Affordable Housing Requirements Over Time", save_path=None):
-    """Plots the affordable housing requirements for each firm over time."""
+def plot_affordable_housing(aff1, aff2, aff3, title="Affordable Housing Requirements Over Time", smooth=True, window=500, save_path=None):
     plt.figure(figsize=(12, 6))
-    plt.plot(aff1, label='Firm 1 - Affordable')
-    plt.plot(aff2, label='Firm 2 - Affordable')
-    plt.plot(aff3, label='Firm 3 - Affordable')
+
+    if smooth:
+        aff1_smooth = np.convolve(aff1, np.ones(window) / window, mode='same')
+        aff2_smooth = np.convolve(aff2, np.ones(window) / window, mode='same')
+        aff3_smooth = np.convolve(aff3, np.ones(window) / window, mode='same')
+        plt.plot(aff1_smooth, label='Firm 1 - Affordable (smoothed)')
+        plt.plot(aff2_smooth, label='Firm 2 - Affordable (smoothed)')
+        plt.plot(aff3_smooth, label='Firm 3 - Affordable (smoothed)')
+    else:
+        plt.plot(aff1, label='Firm 1 - Affordable')
+        plt.plot(aff2, label='Firm 2 - Affordable')
+        plt.plot(aff3, label='Firm 3 - Affordable')
+
     plt.xlabel("Episode")
     plt.ylabel("Affordable Housing Required")
     plt.title(title)
@@ -174,11 +187,12 @@ def plot_convergence(q1_hist, q2_hist, q3_hist, window=1000, save_path=None):
 def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c2, c3,
                                        alpha, epsilon, epsilon_decay, min_epsilon,
                                        affordable_housing_percentage, penalty_per_unit,
-                                       initial_q1=None, initial_q2=None, initial_q3=None):
+                                       initial_q1=None, initial_q2=None, initial_q3=None,
+                                       cost_affordable_multiplier=1.2): # Added here
     """Run Cournot simulation for three firms with affordable housing requirements."""
-    agent1 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit)
-    agent2 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit)
-    agent3 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit)
+    agent1 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit, cost_affordable_multiplier)
+    agent2 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit, cost_affordable_multiplier)
+    agent3 = CournotAgent(max_q, delta_n, alpha, epsilon, epsilon_decay, min_epsilon, affordable_housing_percentage, penalty_per_unit, cost_affordable_multiplier)
 
     # allow user to specify initial quantities
     q1 = initial_q1 if initial_q1 is not None else max_q // 3
@@ -216,7 +230,8 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
 
         # get profits and affordable housing requirements
         reward1, reward2, reward3, affordable_required_1, affordable_required_2, affordable_required_3 = get_profits_three_firms(
-            q1_new, q2_new, q3_new, a, b, c1, c2, c3, affordable_housing_percentage, penalty_per_unit
+            q1_new, q2_new, q3_new, a, b, c1, c2, c3, affordable_housing_percentage, penalty_per_unit,
+            agent1.cost_affordable_multiplier, agent2.cost_affordable_multiplier, agent3.cost_affordable_multiplier # Passed here
         )
 
         next_state1 = (q1_new, q2_new, q3_new)
@@ -243,8 +258,7 @@ def run_cournot_simulation_three_firms(num_episodes, max_q, delta_n, a, b, c1, c
     print()  # add a newline after the progress output
     return q1_hist, q2_hist, q3_hist, agent1, agent2, agent3, affordable_hist_1, affordable_hist_2, affordable_hist_3
 
-
-# Example usage
+# example usage
 if __name__ == "__main__":
 
     print("Running simulation. Current percentage complete:")
@@ -266,17 +280,17 @@ if __name__ == "__main__":
         penalty_per_unit=5,  # penalty for each unit of affordable housing not provided
         initial_q1=0,  # initial quantity for Firm 1
         initial_q2=0,  # initial quantity for Firm 2
-        initial_q3=0   # initial quantity for Firm 3
+        initial_q3=0,   # initial quantity for Firm 3
+        cost_affordable_multiplier=1.1 # Example: Affordable housing costs 10% more to produce (or yields 10% less profit)
     )
 
     # save plots to files
     plot_quantities(q1_hist, q2_hist, q3_hist, smooth=True, save_path="quantities_plot.png")
-    plot_affordable_housing(affordable_hist_1, affordable_hist_2, affordable_hist_3, save_path="affordable_housing_plot.png") # think this var is wrong
+    plot_affordable_housing(affordable_hist_1, affordable_hist_2, affordable_hist_3, smooth=True, save_path="affordable_housing_plot.png") # This variable name is correct now
     plot_convergence(q1_hist, q2_hist, q3_hist, save_path="convergence_plot.png")
 
     # export Q-tables to CSV
     export_q_table(agent1, "Firm1")
     export_q_table(agent2, "Firm2")
     export_q_table(agent3, "Firm3")
-
 
