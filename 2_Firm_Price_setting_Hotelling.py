@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import math
 
 class BertrandAgent:
     def __init__(self, max_delta_p, alpha, epsilon, epsilon_decay, min_epsilon):
@@ -17,7 +18,7 @@ class BertrandAgent:
         return self.q_table.get((state, action), 0.0)
 
     def get_legal_actions(self, current_price):
-        deltas = np.arange(-self.max_delta_p, self.max_delta_p + 0.001, 0.05)  # fewer, coarser steps
+        deltas = np.arange(-self.max_delta_p, self.max_delta_p + 0.001, 0.05)
         return [round(current_price + d, 2) for d in deltas if current_price + d > 0]
 
     def choose_action(self, state):
@@ -42,33 +43,39 @@ class BertrandAgent:
     def decay_epsilon(self):
         self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
-
 def revenue(p1, p2, d1, d2, dist_type, mu_min=0.0, mu_max=1.0, mu_mean=1.0, mu_std=0.2,
             cap1=1.0, cap2=1.0, max_buyer_utility=5.0):
+    mu_max_eff = min(
+        mu_max,
+        (max_buyer_utility - p1) / d1 if d1 > 0 else mu_max,
+        (max_buyer_utility - p2) / d2 if d2 > 0 else mu_max
+    )
+
+    if mu_max_eff <= mu_min:
+        return 0.0, 0.0, None
+
     if d1 == d2:
-        q1 = 0.5
-        q2 = 0.5
+        mu_star = (mu_max + mu_min) / 2
     else:
         mu_star = (p2 - p1) / (d1 - d2)
 
-        if dist_type == 'uniform':
-            F_mu_star = (mu_star - mu_min) / (mu_max - mu_min)
-        elif dist_type == 'normal':
-            F_mu_star = 0.5 * (1 + np.math.erf((mu_star - mu_mean) / (mu_std * np.sqrt(2))))
-        else:
-            raise ValueError("Invalid distribution type. Use 'uniform' or 'normal'.")
+    if dist_type == 'uniform':
+        q1 = max(0, min(mu_star, mu_max_eff) - mu_min) / (mu_max - mu_min)
+        q2 = max(0, mu_max_eff - max(mu_star, mu_min)) / (mu_max - mu_min)
+    elif dist_type == 'normal':
+        def norm_cdf(x):
+            return 0.5 * (1 + math.erf((x - mu_mean) / (mu_std * math.sqrt(2))))
+        q1 = max(0, norm_cdf(min(mu_star, mu_max_eff)) - norm_cdf(mu_min))
+        q2 = max(0, norm_cdf(mu_max_eff) - norm_cdf(max(mu_star, mu_min)))
+    else:
+        raise ValueError("Invalid distribution type. Use 'uniform' or 'normal'.")
 
-        F_mu_star = np.clip(F_mu_star, 0, 1)
-        q1 = min(F_mu_star, cap1)
-        q2 = min(1 - F_mu_star, cap2)
-
-    # Participation constraint
-    q1 = q1 if p1 + mu_mean * d1 <= max_buyer_utility else 0
-    q2 = q2 if p2 + mu_mean * d2 <= max_buyer_utility else 0
+    q1 = min(q1, cap1)
+    q2 = min(q2, cap2)
 
     r1 = p1 * q1
     r2 = p2 * q2
-    return r1, r2
+    return r1, r2, mu_star
 
 
 def run_bertrand_qlearning(num_episodes, initial_price, max_delta_p, d1, d2,
@@ -84,6 +91,10 @@ def run_bertrand_qlearning(num_episodes, initial_price, max_delta_p, d1, d2,
     price1 = initial_price
     price2 = initial_price
 
+    mu_star_history = []
+    r1_history = []
+    r2_history = []
+
     for episode in range(num_episodes):
         state1 = price2
         state2 = price1
@@ -91,8 +102,8 @@ def run_bertrand_qlearning(num_episodes, initial_price, max_delta_p, d1, d2,
         price1 = agent1.choose_action(state1)
         price2 = agent2.choose_action(state2)
 
-        r1, r2 = revenue(price1, price2, d1, d2, dist_type, mu_min, mu_max,
-                         mu_mean, mu_std, cap1, cap2, max_buyer_utility)
+        r1, r2, mu_star = revenue(price1, price2, d1, d2, dist_type, mu_min, mu_max,
+                                  mu_mean, mu_std, cap1, cap2, max_buyer_utility)
 
         agent1.update(state1, price1, r1, price2)
         agent2.update(state2, price2, r2, price1)
@@ -100,19 +111,29 @@ def run_bertrand_qlearning(num_episodes, initial_price, max_delta_p, d1, d2,
         agent1.decay_epsilon()
         agent2.decay_epsilon()
 
-    return agent1.history, agent2.history
+        mu_star_history.append(mu_star)
+
+        r1_history.append(r1)
+        r2_history.append(r2)
+
+    return agent1.history, agent2.history, mu_star_history, r1_history, r2_history
 
 
 if __name__ == "__main__":
-    q1_hist, q2_hist = run_bertrand_qlearning(
-        num_episodes=20000,
-        initial_price=1.0,
+    # Compute and print mean mu_star for the last 100 episodes
+    def safe_mean(values):
+        valid = [v for v in values if v is not None]
+        return sum(valid) / len(valid) if valid else float('nan')
+    q1_hist, q2_hist, mu_star_hist, r1_hist, r2_hist = run_bertrand_qlearning(
+        num_episodes=10000,
+        initial_price=5,
         max_delta_p=0.2,
-        d1=0.2,
-        d2=0.8,
+        d1=0.4,
+        d2=0.6,
         dist_type='uniform',
-        mu_min=0.5,
-        mu_max=1.5,
+        mu_min=0.6,
+        mu_max=1.4,
+
         mu_mean=1.0,
         mu_std=0.3,
         cap1=1.0,
@@ -128,8 +149,27 @@ if __name__ == "__main__":
     plt.plot(q2_hist, label="Firm 2 Price")
     plt.xlabel("Episode")
     plt.ylabel("Price")
-    plt.title("Price Learning with Faster Convergence Setup")
+    plt.title("Results of Q-learning in Bertrand Competition")
     plt.legend()
     plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    print("Mean μ* (last 100 episodes):", round(safe_mean(mu_star_hist[-100:]),4))
+    print("Mean p1 (last 100 episodes):", round(safe_mean(q1_hist[-100:]), 4))
+    print("Mean p2 (last 100 episodes):", round(safe_mean(q2_hist[-100:]), 4))
+    print("Mean r1 (last 100 episodes):", round(safe_mean(r1_hist[-100:]), 4))
+    print("Mean r2 (last 100 episodes):", round(safe_mean(r2_hist[-100:]), 4))
+    print("Mean p1 (last 100 episodes):", round(safe_mean(q1_hist[-100:]), 4))
+    print("Mean p2 (last 100 episodes):", round(safe_mean(q2_hist[-100:]), 4))
+
+    plt.plot(mu_star_hist, label="μ* (Indifferent Buyer)")
+    plt.axhline(np.mean([m for m in mu_star_hist[-100:] if m is not None]), color='r', linestyle='--', label='Mean μ* (last 100)')
+    plt.xlabel("Episode")
+    plt.ylabel("μ*")
+    plt.title("Evolution of Indifference Point Over Time")
+    plt.ylim(0.6, 1.4)  # <-- Set y-axis limits here
+    plt.grid(True)
+    plt.legend()
     plt.tight_layout()
     plt.show()
